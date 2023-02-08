@@ -1,0 +1,12 @@
+[package]
+name = "jsonrpsee-server-template"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.69"
+log = "0.4.17"
+jsonrpsee = { version = "0.16.2", features = ["server"] }
+tokio = { version = "1.25.0", features = ["full"] }
