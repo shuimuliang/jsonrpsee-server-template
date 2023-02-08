@@ -8,6 +8,6 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.69"
 log = "0.4.17"
-jsonrpsee = { version = "0.16.2", features = ["server"] }
+jsonrpsee = { version = "0.16.2", features = ["server", "macros"] }
 tokio = { version = "1.25.0", features = ["full"] }
 simplelog = "0.12.0"
