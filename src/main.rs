@@ -1,58 +1,12 @@
-use anyhow::anyhow;
-use jsonrpsee::core::{async_trait, RpcResult};
 use jsonrpsee::server::ServerBuilder;
-use jsonrpsee::proc_macros::rpc;
-use jsonrpsee::types::error::CallError;
+use jsonrpsee_server_template::{PostRpcServer, RpcImpl};
 use log::info;
-use simplelog::{TermLogger, LevelFilter, Config, TerminalMode, ColorChoice};
-use std::fmt::Display;
+use sea_orm::Database;
+use simplelog::{ColorChoice, Config, LevelFilter, TermLogger, TerminalMode};
+use std::env;
 use std::net::SocketAddr;
 use tokio::signal::ctrl_c;
 use tokio::signal::unix::{signal, SignalKind};
-
-struct RpcImpl {
-    // conn: DatabaseConnection,
-}
-
-#[rpc(server)]
-trait PostRpc {
-    #[method(name = "say_hello")]
-    async fn say_hello(
-        &self,
-    ) -> RpcResult<String>;
-
-    #[method(name = "Post.List")]
-    async fn list(
-        &self,
-    ) -> RpcResult<i32>;
-}
-
-#[async_trait]
-impl PostRpcServer for RpcImpl {
-    async fn say_hello(
-        &self,
-    ) -> RpcResult<String> {
-        Ok("Hello World".to_owned())
-    }
-    async fn list(
-        &self,
-    ) -> RpcResult<i32> {
-        Ok(1)
-    }
-}
-
-trait IntoJsonRpcResult<T> {
-    fn internal_call_error(self) -> RpcResult<T>;
-}
-
-impl<T, E> IntoJsonRpcResult<T> for Result<T, E>
-    where
-        E: Display,
-{
-    fn internal_call_error(self) -> RpcResult<T> {
-        self.map_err(|e| jsonrpsee::core::Error::Call(CallError::Failed(anyhow!("{}", e))))
-    }
-}
 
 #[tokio::main]
 async fn start() -> anyhow::Result<()> {
@@ -63,11 +17,20 @@ async fn start() -> anyhow::Result<()> {
         ColorChoice::Auto,
     );
 
+    dotenvy::dotenv().ok();
+    let db_url = env::var("DATABASE_URL").expect("DATABASE_URL is not set in .env file");
+    let host = env::var("HOST").expect("HOST is not set in .env file");
+    let port = env::var("PORT").expect("PORT is not set in .env file");
+    let server_url = format!("{host}:{port}");
+
     let server = ServerBuilder::default()
-        .build("127.0.0.1:3030".parse::<SocketAddr>()?)
+        .build(server_url.parse::<SocketAddr>()?)
         .await?;
 
-    let rpc_impl = RpcImpl{};
+    // create post table if not exists
+    let conn = Database::connect(&db_url).await.unwrap();
+
+    let rpc_impl = RpcImpl::new(conn);
     let server_addr = server.local_addr()?;
     let handle = server.start(rpc_impl.into_rpc()).unwrap();
 
